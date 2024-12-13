@@ -9,27 +9,32 @@ local Players = game:GetService("Players")
 local RateLimiter = {}
 RateLimiter.__index = RateLimiter
 
-type void = nil;
+type void = nil
+
+export type PlayerLimitData = {
+	StartTime: number,
+	RequestCount: number,
+}
 
 export type RateLimiter = {
 	MaxRequests: number,
 	RefreshDuration: number,
-	PlayerLimits: { [Player]: {
-		StartTime: number,
-		RequestCount: number,
-	} },
+	PlayerLimits: { [Player]: PlayerLimitData },
 	PlayerDisconnectionSignal: RBXScriptConnection,
 
-    new: (MaxRequests: number?, RefreshDuration: number?) -> RateLimiter,
-    Destroy: () -> void,
-    AddPlayer: (Player: Player) -> void,
-    RemovePlayer: (Player: Player) -> void,
-    RateLimitReached: (Player: Player) -> boolean,
+	new: (MaxRequests: number?, RefreshDuration: number?) -> RateLimiter,
+	Destroy: () -> void,
+	AddPlayer: (Player: Player) -> void,
+	RemovePlayer: (Player: Player) -> void,
+	RateLimitReached: (Player: Player) -> boolean,
 } & typeof(setmetatable({}, RateLimiter))
 
 function RateLimiter.new(MaxRequests: number?, RefreshDuration: number?): RateLimiter
 	assert(not MaxRequests or (MaxRequests and type(MaxRequests) == "number"), "MaxRequests must be a number or nil")
-	assert(not RefreshDuration or (RefreshDuration and type(RefreshDuration) == "number"), "RefreshDuration must be a number or nil")
+	assert(
+		not RefreshDuration or (RefreshDuration and type(RefreshDuration) == "number"),
+		"RefreshDuration must be a number or nil"
+	)
 
 	local self = setmetatable({}, RateLimiter) :: RateLimiter
 
@@ -47,6 +52,8 @@ end
 function RateLimiter:Destroy(): void
 	self.PlayerDisconnectionSignal:Disconnect()
 	self = nil
+
+	return
 end
 
 function RateLimiter:AddPlayer(Player: Player): void
@@ -58,6 +65,8 @@ function RateLimiter:AddPlayer(Player: Player): void
 			RequestCount = 0,
 		}
 	end
+
+	return
 end
 
 function RateLimiter:RemovePlayer(Player: Player): void
@@ -66,6 +75,8 @@ function RateLimiter:RemovePlayer(Player: Player): void
 	if self.PlayerLimits[Player] then
 		self.PlayerLimits[Player] = nil
 	end
+
+	return
 end
 
 function RateLimiter:RateLimitReached(Player: Player): boolean
@@ -73,20 +84,20 @@ function RateLimiter:RateLimitReached(Player: Player): boolean
 
 	self:AddPlayer(Player)
 
-	local PlayerData = self.PlayerLimits[Player]
-	local CurrentTime = tick()
+	local PlayerData: PlayerLimitData = self.PlayerLimits[Player]
+	local CurrentTime: number = tick()
 
-	if CurrentTime > PlayerData.StartTime + self.RefreshDuration then
+	if CurrentTime > (PlayerData.StartTime + self.RefreshDuration) then
 		PlayerData.StartTime = CurrentTime
 		PlayerData.RequestCount = 0
 	end
 
 	if PlayerData.RequestCount >= self.MaxRequests then
 		return true
-	else
-		PlayerData.RequestCount += 1
-		return false
 	end
+
+	PlayerData.RequestCount += 1
+	return false
 end
 
 return RateLimiter
